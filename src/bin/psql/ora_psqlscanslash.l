@@ -380,7 +380,8 @@ other			.
 
 :{variable_char}+	{
 					/* Possible psql variable substitution */
-					if (cur_state->callbacks->get_variable == NULL)
+					if (cur_state->callbacks == NULL ||
+						cur_state->callbacks->get_variable == NULL)
 						ECHO;
 					else
 					{
@@ -721,6 +722,25 @@ ora_psql_scan_slash_command_end(PsqlScanState state)
 	 * reselect the appropriate initial state.
 	 */
 	psql_scan_reselect_sql_lexer(state);
+}
+
+/*
+ * Fetch current paren nesting depth
+ */
+int
+ora_psql_scan_get_paren_depth(PsqlScanState state)
+{
+	return state->paren_depth;
+}
+
+/*
+ * Set paren nesting depth
+ */
+void
+ora_psql_scan_set_paren_depth(PsqlScanState state, int depth)
+{
+	Assert(depth >= 0);
+	state->paren_depth = depth;
 }
 
 /*
