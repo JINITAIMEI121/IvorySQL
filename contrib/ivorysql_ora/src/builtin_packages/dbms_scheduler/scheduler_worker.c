@@ -31,6 +31,7 @@
 #include "access/xact.h"
 #include "executor/spi.h"
 #include "miscadmin.h"
+#include "utils/builtins.h"
 #include "nodes/miscnodes.h"
 #include "parser/parse_type.h"
 #include "pgstat.h"
@@ -91,7 +92,30 @@ sched_execute_job(SchedJobDef *job)
 		}
 
 		initStringInfo(&buf);
-		appendStringInfo(&buf, "CALL %s(", job->job_action);
+		/*
+		 * job_action is stored as raw user text.  Quote each dot-separated
+		 * segment as an identifier so the job cannot smuggle SQL syntax into
+		 * the CALL statement it is interpolated into.
+		 */
+		appendStringInfoString(&buf, "CALL ");
+		{
+			char	   *act = pstrdup(job->job_action);
+			char	   *seg;
+			char	   *ctx = NULL;
+			bool		first_seg = true;
+
+			for (seg = strtok_r(act, ".", &ctx);
+				 seg != NULL;
+				 seg = strtok_r(NULL, ".", &ctx))
+			{
+				if (!first_seg)
+					appendStringInfoChar(&buf, '.');
+				appendStringInfoString(&buf, quote_identifier(seg));
+				first_seg = false;
+			}
+			pfree(act);
+		}
+		appendStringInfoChar(&buf, '(');
 		for (i = 0; i < job->number_of_arguments; i++)
 		{
 			char	   *typename = job->arg_types ? job->arg_types[i] : NULL;
