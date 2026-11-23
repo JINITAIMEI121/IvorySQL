@@ -498,8 +498,27 @@ plisql_exec_autonomous_function(PLiSQL_function *func, FunctionCallInfo fcinfo,
 	host_str = GetConfigOption("listen_addresses", false, false);
 	if (host_str && strcmp(host_str, "*") != 0 && strcmp(host_str, "") != 0)
 	{
-		/* Use localhost for local connections */
-		appendStringInfoString(&connstr_buf, " host=localhost");
+		/*
+		 * Use the first configured listen address for the self-connection.
+		 * Hardcoding "localhost" breaks when the server listens only on a
+		 * specific non-loopback address.
+		 */
+		char	   *first;
+		char	   *host_copy = pstrdup(host_str);
+
+		first = strtok(host_copy, ",");
+		if (first)
+		{
+			appendStringInfoString(&connstr_buf, " host=");
+			while (*first)
+			{
+				if (*first == '\'' || *first == '\\')
+					appendStringInfoChar(&connstr_buf, '\\');
+				appendStringInfoChar(&connstr_buf, *first);
+				first++;
+			}
+		}
+		pfree(host_copy);
 	}
 
 	/* Add port if configured */
