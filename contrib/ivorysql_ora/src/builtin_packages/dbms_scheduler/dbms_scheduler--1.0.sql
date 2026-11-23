@@ -535,6 +535,9 @@ CREATE OR REPLACE PACKAGE dbms_scheduler IS
 		argument_name VARCHAR2,
 		argument_value VARCHAR2);
 
+	FUNCTION generate_job_name(prefix VARCHAR2 DEFAULT 'JOB_')
+		RETURN VARCHAR2;
+
 END dbms_scheduler;
 
 CREATE OR REPLACE PACKAGE BODY dbms_scheduler IS
@@ -710,6 +713,14 @@ CREATE OR REPLACE PACKAGE BODY dbms_scheduler IS
 	BEGIN
 		PERFORM sys.ora_dbms_scheduler_purge_log(log_history, which_log,
 			job_name);
+	END;
+
+	FUNCTION generate_job_name(prefix VARCHAR2 DEFAULT 'JOB_')
+		RETURN VARCHAR2 IS
+		n BIGINT;
+	BEGIN
+		SELECT floor(random() * 10000000000)::BIGINT INTO n;
+		RETURN prefix || lpad(n::TEXT, 10, '0');
 	END;
 
 END dbms_scheduler;
