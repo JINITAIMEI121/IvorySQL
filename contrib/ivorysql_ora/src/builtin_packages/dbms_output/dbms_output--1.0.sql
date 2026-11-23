@@ -81,6 +81,8 @@ CREATE OR REPLACE PACKAGE dbms_output IS
     PROCEDURE get_line(line OUT VARCHAR2, status OUT INTEGER);
     PROCEDURE get_lines(lines OUT TEXT[], numlines IN OUT INTEGER);
     PROCEDURE get_lines(lines OUT VARCHAR2[], numlines IN OUT INTEGER);
+    PROCEDURE put_lines(lines IN TEXT[], numlines IN INTEGER);
+    PROCEDURE put_lines(lines IN VARCHAR2[], numlines IN INTEGER);
 END dbms_output;
 
 CREATE OR REPLACE PACKAGE BODY dbms_output IS
@@ -140,6 +142,22 @@ CREATE OR REPLACE PACKAGE BODY dbms_output IS
         SELECT * INTO result FROM sys.ora_dbms_output_get_lines(numlines);
         lines := result.lines;
         numlines := result.numlines;
+    END;
+
+    PROCEDURE put_lines(lines IN TEXT[], numlines IN INTEGER) IS
+        i INTEGER;
+    BEGIN
+        FOR i IN 1 .. numlines LOOP
+            put_line(lines[i]);
+        END LOOP;
+    END;
+
+    PROCEDURE put_lines(lines IN VARCHAR2[], numlines IN INTEGER) IS
+        i INTEGER;
+    BEGIN
+        FOR i IN 1 .. numlines LOOP
+            put_line(lines[i]);
+        END LOOP;
     END;
 
 END dbms_output;
