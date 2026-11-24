@@ -59,6 +59,11 @@ CREATE OR REPLACE PACKAGE dbms_transaction AUTHID CURRENT_USER IS
     PROCEDURE read_only;
     PROCEDURE read_write;
 
+    PROCEDURE commit_comment(comment IN VARCHAR2);
+    PROCEDURE force_commit(txid IN VARCHAR2);
+    PROCEDURE rollback_force(txid IN VARCHAR2);
+    PROCEDURE set_isolation_level(level IN VARCHAR2);
+
 END dbms_transaction;
 
 CREATE OR REPLACE PACKAGE BODY dbms_transaction IS
@@ -91,6 +96,48 @@ CREATE OR REPLACE PACKAGE BODY dbms_transaction IS
     PROCEDURE read_write IS
     BEGIN
         EXECUTE 'SET TRANSACTION READ WRITE';
+    END;
+
+    /*
+     * Oracle stores a commit comment as transaction metadata (queryable via
+     * V$TRANSACTION); PostgreSQL has no such metadata store, so the comment
+     * is accepted for signature compatibility and the commit executes
+     * normally.
+     */
+    PROCEDURE commit_comment(comment IN VARCHAR2) IS
+    BEGIN
+        COMMIT;
+    END;
+
+    /*
+     * Oracle's FORCE variants address in-doubt distributed transactions; the
+     * PostgreSQL equivalent is a prepared two-phase transaction.  Ending the
+     * current transaction first lets COMMIT/ROLLBACK PREPARED run outside a
+     * transaction block.
+     */
+    PROCEDURE force_commit(txid IN VARCHAR2) IS
+    BEGIN
+        COMMIT;
+        EXECUTE 'COMMIT PREPARED ' || quote_literal(txid);
+    END;
+
+    PROCEDURE rollback_force(txid IN VARCHAR2) IS
+    BEGIN
+        COMMIT;
+        EXECUTE 'ROLLBACK PREPARED ' || quote_literal(txid);
+    END;
+
+    PROCEDURE set_isolation_level(level IN VARCHAR2) IS
+        lv VARCHAR2(32) := upper(trim(level));
+    BEGIN
+        IF lv NOT IN ('SERIALIZABLE', 'REPEATABLE READ', 'READ COMMITTED') THEN
+            RAISE EXCEPTION 'unsupported isolation level: %', level;
+        END IF;
+        -- Oracle requires SET TRANSACTION to be the first statement of the
+        -- transaction; ending the implicit transaction first keeps that
+        -- guarantee regardless of caller state.
+        COMMIT;
+        EXECUTE 'SET TRANSACTION ISOLATION LEVEL ' || lv;
     END;
 
 END dbms_transaction;
