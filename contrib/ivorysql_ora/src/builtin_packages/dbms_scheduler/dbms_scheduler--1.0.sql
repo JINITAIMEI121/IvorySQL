@@ -535,6 +535,12 @@ CREATE OR REPLACE PACKAGE dbms_scheduler IS
 		argument_name VARCHAR2,
 		argument_value VARCHAR2);
 
+	PROCEDURE set_attribute(job_name VARCHAR2, attribute VARCHAR2,
+		value VARCHAR2);
+
+	PROCEDURE get_attribute(job_name VARCHAR2, attribute VARCHAR2,
+		value OUT VARCHAR2);
+
 	FUNCTION generate_job_name(prefix VARCHAR2 DEFAULT 'JOB_')
 		RETURN VARCHAR2;
 
@@ -721,6 +727,62 @@ CREATE OR REPLACE PACKAGE BODY dbms_scheduler IS
 	BEGIN
 		SELECT floor(random() * 10000000000)::BIGINT INTO n;
 		RETURN prefix || lpad(n::TEXT, 10, '0');
+	END;
+
+	PROCEDURE set_attribute(job_name VARCHAR2, attribute VARCHAR2,
+		value VARCHAR2) IS
+		attr VARCHAR2(64) := upper(trim(attribute));
+		jname VARCHAR2(255) := trim(job_name);
+	BEGIN
+		IF attr NOT IN ('REPEAT_INTERVAL', 'START_DATE', 'END_DATE',
+			'COMMENTS', 'AUTO_DROP') THEN
+			RAISE EXCEPTION 'unsupported attribute: %', attribute;
+		END IF;
+		IF attr = 'REPEAT_INTERVAL' THEN
+			UPDATE sys.scheduler_jobs SET repeat_interval = set_attribute.value
+				WHERE sys.scheduler_jobs.job_name = set_attribute.jname;
+		ELSIF attr = 'START_DATE' THEN
+			UPDATE sys.scheduler_jobs SET start_date = set_attribute.value
+				WHERE sys.scheduler_jobs.job_name = set_attribute.jname;
+		ELSIF attr = 'END_DATE' THEN
+			UPDATE sys.scheduler_jobs SET end_date = set_attribute.value
+				WHERE sys.scheduler_jobs.job_name = set_attribute.jname;
+		ELSIF attr = 'COMMENTS' THEN
+			UPDATE sys.scheduler_jobs SET comments = set_attribute.value
+				WHERE sys.scheduler_jobs.job_name = set_attribute.jname;
+		ELSIF attr = 'AUTO_DROP' THEN
+			UPDATE sys.scheduler_jobs SET auto_drop =
+				(upper(trim(set_attribute.value)) IN ('TRUE', 'Y', 'YES', '1'))
+				WHERE sys.scheduler_jobs.job_name = set_attribute.jname;
+		END IF;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'job % does not exist', job_name;
+		END IF;
+	END;
+
+	PROCEDURE get_attribute(job_name VARCHAR2, attribute VARCHAR2,
+		value OUT VARCHAR2) IS
+		attr VARCHAR2(64) := upper(trim(attribute));
+		jname VARCHAR2(255) := trim(job_name);
+		jr sys.scheduler_jobs;
+	BEGIN
+		SELECT * INTO jr FROM sys.scheduler_jobs
+			WHERE sys.scheduler_jobs.job_name = get_attribute.jname;
+		IF attr = 'REPEAT_INTERVAL' THEN
+			value := jr.repeat_interval;
+		ELSIF attr = 'START_DATE' THEN
+			value := jr.start_date;
+		ELSIF attr = 'END_DATE' THEN
+			value := jr.end_date;
+		ELSIF attr = 'COMMENTS' THEN
+			value := jr.comments;
+		ELSIF attr = 'AUTO_DROP' THEN
+			value := CASE WHEN jr.auto_drop THEN 'TRUE' ELSE 'FALSE' END;
+		ELSIF attr = 'ENABLED' THEN
+			value := CASE WHEN jr.enabled THEN 'TRUE' ELSE 'FALSE' END;
+		ELSE
+			RAISE EXCEPTION 'unsupported attribute: %', attribute;
+		END IF;
 	END;
 
 END dbms_scheduler;
