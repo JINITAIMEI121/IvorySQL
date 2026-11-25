@@ -679,6 +679,66 @@ STRICT
 IMMUTABLE
 PARALLEL SAFE;
 
+/* Oracle accepts numeric arguments for substr()/substrb(): the number is
+ * implicitly rendered as text before the offset/length apply.  These
+ * wrappers keep smallint/integer/bigint/numeric inputs from failing with
+ * "function ... does not exist" in oracle mode. */
+CREATE FUNCTION sys.substr(pg_catalog.int2, pg_catalog.int2)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+RETURN sys.substr($1::text, $2::pg_catalog.int4);
+
+CREATE FUNCTION sys.substr(pg_catalog.int2, pg_catalog.int2, pg_catalog.int2)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+RETURN sys.substr($1::text, $2::pg_catalog.int4, $3::pg_catalog.int4);
+
+CREATE FUNCTION sys.substr(pg_catalog.int4, pg_catalog.int4)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+RETURN sys.substr($1::text, $2);
+
+CREATE FUNCTION sys.substr(pg_catalog.int4, pg_catalog.int4, pg_catalog.int4)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+RETURN sys.substr($1::text, $2, $3);
+
+CREATE FUNCTION sys.substr(pg_catalog.int8, pg_catalog.int8)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+RETURN sys.substr($1::text, $2::pg_catalog.int4);
+
+CREATE FUNCTION sys.substr(pg_catalog.int8, pg_catalog.int8, pg_catalog.int8)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+RETURN sys.substr($1::text, $2::pg_catalog.int4, $3::pg_catalog.int4);
+
+CREATE FUNCTION sys.substr(number, number)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+RETURN sys.substr($1::text, $2::pg_catalog.int4);
+
+CREATE FUNCTION sys.substr(number, number, number)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+RETURN sys.substr($1::text, $2::pg_catalog.int4, $3::pg_catalog.int4);
+
 /* SR */
 CREATE FUNCTION sys.substrb(varchar, number)
 RETURNS text
