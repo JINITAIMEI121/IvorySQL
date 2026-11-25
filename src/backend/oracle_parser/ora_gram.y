@@ -334,6 +334,7 @@ static bool oracleJoinOpExists(const Node *expr);
 %type <str>			opt_single_name
 %type <list>		opt_qualified_name
 %type <boolean>		opt_concurrently opt_usingindex
+%type <boolean>		listagg_distinct_opt
 %type <dbehavior>	opt_drop_behavior
 %type <list>		opt_utility_option_list
 %type <list>		opt_wait_with_clause
@@ -19452,12 +19453,12 @@ func_expr: func_application within_group_clause filter_clause null_treatment ove
 				{ $$ = $1; }
 
 
-                        | LISTAGG '(' func_arg_list ')' within_group_clause filter_clause over_clause 
+                        | LISTAGG '(' listagg_distinct_opt func_arg_list ')' within_group_clause filter_clause over_clause
                 	{
 	                    FuncCall *string_agg_n;
 	                    FuncCall *check_n;
 
-                            if ($5 == NIL)
+                            if ($6 == NIL)
 						ereport(ERROR,
 								(errcode(ERRCODE_SYNTAX_ERROR),
 								 errmsg("LISTAGG requires WITHIN GROUP (ORDER BY ...)"),
@@ -19466,15 +19467,16 @@ func_expr: func_application within_group_clause filter_clause null_treatment ove
 						* If no delimiter provided (single arg), append empty string
 						* so string_agg always receives exactly 2 arguments.
 						*/
-						if (list_length($3) == 1)
-							$3 = lappend($3, makeStringConst("", @3));
+						if (list_length($4) == 1)
+							$4 = lappend($4, makeStringConst("", @4));
 
 						string_agg_n = makeFuncCall(SystemFuncName("string_agg"),
-													$3,
+													$4,
 													COERCE_EXPLICIT_CALL, @1);
-	                    string_agg_n->agg_order = $5;
-                            string_agg_n->agg_filter = $6;
-                            string_agg_n->over = $7;
+	                    string_agg_n->agg_order = $6;
+                            string_agg_n->agg_filter = $7;
+                            string_agg_n->over = $8;
+                            string_agg_n->agg_distinct = $3;
 
 			    /* Wrap with sys.listagg_check to enforce the 4000-byte limit */
 			    check_n = makeFuncCall(OracleSystemFuncName("ora_listagg_check"),
@@ -20549,6 +20551,11 @@ expr_list:	a_expr
 		;
 
 /* function arguments can have names */
+listagg_distinct_opt:
+			/* EMPTY */							{ $$ = false; }
+			| DISTINCT							{ $$ = true; }
+		;
+
 func_arg_list:  func_arg_expr
 				{
 					$$ = list_make1($1);
